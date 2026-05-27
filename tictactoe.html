@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Крестики-нолики</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Nunito:wght@400;600&display=swap');
+
+  /* ===== ТЁМНАЯ ТЕМА (по умолчанию) ===== */
+  :root {
+    --x-color: #E8445A;
+    --o-color: #3B82F6;
+    --bg: #F5F5F7;
+    --surface: #FFFFFF;
+    --surface2: #EBEBED;
+    --border: rgba(0,0,0,0.08);
+    --text: #1A1A1F;
+    --muted: rgba(26,26,31,0.45);
+    --win-glow: rgba(29,158,117,0.12);
+    --win-border: rgba(29,158,117,0.4);
+    --circle1: rgba(232,68,90,0.08);
+    --circle2: rgba(59,130,246,0.08);
+    --hover-cell: rgba(0,0,0,0.03);
+    --btn-primary-bg: linear-gradient(135deg, rgba(232,68,90,0.12), rgba(59,130,246,0.12));
+    --btn-primary-bg-hover: linear-gradient(135deg, rgba(232,68,90,0.2), rgba(59,130,246,0.2));
+    --btn-primary-border: rgba(0,0,0,0.12);
+    --toggle-track: #EBEBED;
+    --toggle-thumb: #FFFFFF;
+    --toggle-icon-show: '🌙';
+  }
+
+  html.dark {
+    --bg: #0F0F13;
+    --surface: #1A1A22;
+    --surface2: #22222E;
+    --border: rgba(255,255,255,0.07);
+    --text: #F0F0F5;
+    --muted: rgba(240,240,245,0.45);
+    --win-glow: rgba(255,255,255,0.12);
+    --win-border: rgba(255,255,255,0.2);
+    --circle1: rgba(232,68,90,0.12);
+    --circle2: rgba(59,130,246,0.12);
+    --hover-cell: rgba(255,255,255,0.04);
+    --btn-primary-bg: linear-gradient(135deg, rgba(232,68,90,0.25), rgba(59,130,246,0.25));
+    --btn-primary-bg-hover: linear-gradient(135deg, rgba(232,68,90,0.35), rgba(59,130,246,0.35));
+    --btn-primary-border: rgba(255,255,255,0.15);
+    --toggle-track: #2A2A38;
+    --toggle-thumb: #3A3A4E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    width: 340px; height: 340px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--circle1) 0%, transparent 70%);
+    top: -80px; left: -80px;
+    pointer-events: none;
+    transition: background 0.3s;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--circle2) 0%, transparent 70%);
+    bottom: -60px; right: -60px;
+    pointer-events: none;
+    transition: background 0.3s;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  /* ===== ШАПКА ===== */
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .game-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .status-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 20px;
+    display: inline-block;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .status {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 0.3s;
+    color: var(--text);
+  }
+  .status.x { color: var(--x-color); }
+  .status.o { color: var(--o-color); }
+  .status.win { animation: pulse 0.6s ease; }
+
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  /* ===== ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ===== */
+  .theme-toggle {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 10px 5px 7px;
+    transition: background 0.3s, border-color 0.3s;
+    user-select: none;
+  }
+  .theme-toggle:active { transform: translateY(-50%) scale(0.95); }
+  .theme-icon {
+    font-size: 14px;
+    line-height: 1;
+    transition: transform 0.4s;
+  }
+  .theme-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: color 0.3s;
+  }
+
+  /* ===== РЕЖИМ ===== */
+  .mode-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px;
+    margin-bottom: 16px;
+    gap: 3px;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 8px 0;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  /* ===== СЧЁТ ===== */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .score-card.active-x { border-color: rgba(232,68,90,0.5); }
+  .score-card.active-o { border-color: rgba(59,130,246,0.5); }
+  .score-sym { font-size: 20px; margin-bottom: 2px; display: block; }
+  .score-num {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .score-x .score-num { color: var(--x-color); }
+  .score-o .score-num { color: var(--o-color); }
+  .score-lbl { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; display: block; }
+  .score-draw { text-align: center; padding: 8px; }
+  .draw-num {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .draw-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ===== ПОЛЕ ===== */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, border-color 0.2s;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    transition: background 0.15s;
+    border-radius: 16px;
+  }
+  .cell:hover:not(.taken)::before { background: var(--hover-cell); }
+  .cell:active:not(.taken) { transform: scale(0.92); }
+  .cell.taken { cursor: default; }
+
+  .cell .mark {
+    display: inline-block;
+    animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes pop {
+    0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .cell.win-cell {
+    background: var(--win-glow);
+    border-color: var(--win-border);
+    animation: win-flash 0.5s ease;
+  }
+  @keyframes win-flash {
+    0%,100% { background: var(--win-glow); }
+    50% { background: var(--win-glow); filter: brightness(1.5); }
+  }
+
+  /* ===== КНОПКИ ===== */
+  .controls { display: flex; gap: 8px; }
+  .btn {
+    flex: 1;
+    padding: 13px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, border-color 0.3s;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-border);
+  }
+  .btn.primary:hover { background: var(--btn-primary-bg-hover); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="game-title">Крестики-нолики</div>
+    <div class="status-wrap">
+      <div class="status x" id="status">Ход: ❌</div>
+    </div>
+    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+      <span class="theme-icon" id="themeIcon">🌙</span>
+      <span class="theme-label" id="themeLabel">Тёмная</span>
+    </div>
+  </div>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="mode-pvp" onclick="setMode('pvp')">👥 Два игрока</button>
+    <button class="mode-btn" id="mode-bot" onclick="setMode('bot')">🤖 Против бота</button>
+  </div>
+
+  <div class="scoreboard">
+    <div class="score-card score-x active-x" id="card-x">
+      <span class="score-sym">❌</span>
+      <span class="score-num" id="score-x">0</span>
+      <span class="score-lbl">Игрок 1</span>
+    </div>
+    <div class="score-draw">
+      <div class="draw-num" id="score-d">0</div>
+      <div class="draw-lbl">Ничьи</div>
+    </div>
+    <div class="score-card score-o" id="card-o">
+      <span class="score-sym">⭕</span>
+      <span class="score-num" id="score-o">0</span>
+      <span class="score-lbl" id="o-label">Игрок 2</span>
+    </div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="cell" id="c0" onclick="play(0)"></div>
+    <div class="cell" id="c1" onclick="play(1)"></div>
+    <div class="cell" id="c2" onclick="play(2)"></div>
+    <div class="cell" id="c3" onclick="play(3)"></div>
+    <div class="cell" id="c4" onclick="play(4)"></div>
+    <div class="cell" id="c5" onclick="play(5)"></div>
+    <div class="cell" id="c6" onclick="play(6)"></div>
+    <div class="cell" id="c7" onclick="play(7)"></div>
+    <div class="cell" id="c8" onclick="play(8)"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" onclick="reset()">🔄 Новая игра</button>
+    <button class="btn" onclick="resetScore()">Сбросить счёт</button>
+  </div>
+</div>
+
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  let isDark = false;
+
+  function applyTheme() {
+    const icon = document.getElementById('themeIcon');
+    const label = document.getElementById('themeLabel');
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      icon.textContent = '☀️';
+      label.textContent = 'Светлая';
+      if (tg) { tg.setHeaderColor('#0F0F13'); tg.setBackgroundColor('#0F0F13'); }
+    } else {
+      document.documentElement.classList.remove('dark');
+      icon.textContent = '🌙';
+      label.textContent = 'Тёмная';
+      if (tg) { tg.setHeaderColor('#F5F5F7'); tg.setBackgroundColor('#F5F5F7'); }
+    }
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
+
+  function toggleTheme() {
+    isDark = !isDark;
+    applyTheme();
+  }
+
+  // Восстановить тему из localStorage
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') { isDark = true; }
+  applyTheme();
+
+  let board = Array(9).fill(null);
+  let current = 'X';
+  let over = false;
+  let mode = 'pvp';
+  let scores = { X: 0, O: 0, D: 0 };
+  const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('mode-pvp').className = 'mode-btn' + (m==='pvp' ? ' active' : '');
+    document.getElementById('mode-bot').className = 'mode-btn' + (m==='bot' ? ' active' : '');
+    document.getElementById('o-label').textContent = m === 'bot' ? 'Бот' : 'Игрок 2';
+    reset();
+  }
+
+  function setStatus(txt, cls) {
+    const el = document.getElementById('status');
+    el.textContent = txt;
+    el.className = 'status ' + (cls || '');
+  }
+
+  function render() {
+    board.forEach((v, i) => {
+      const el = document.getElementById('c' + i);
+      if (v) {
+        el.innerHTML = `<span class="mark">${v === 'X' ? '❌' : '⭕'}</span>`;
+        el.className = 'cell taken ' + v.toLowerCase();
+      } else {
+        el.innerHTML = '';
+        el.className = 'cell';
+      }
+    });
+    document.getElementById('card-x').className = 'score-card score-x' + (!over && current==='X' ? ' active-x' : '');
+    document.getElementById('card-o').className = 'score-card score-o' + (!over && current==='O' ? ' active-o' : '');
+  }
+
+  function checkWin(b, p) {
+    return WINS.find(([a, c, d]) => b[a]===p && b[c]===p && b[d]===p) || null;
+  }
+
+  function play(i) {
+    if (over || board[i]) return;
+    board[i] = current;
+    render();
+    const w = checkWin(board, current);
+    if (w) {
+      w.forEach(idx => document.getElementById('c' + idx).classList.add('win-cell'));
+      const sym = current === 'X' ? '❌' : '⭕';
+      const who = mode === 'bot' && current === 'O' ? '🤖 Бот победил!' : sym + ' победил!';
+      setStatus(who, 'win');
+      scores[current]++;
+      updateScore();
+      over = true;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      return;
+    }
+    if (board.every(Boolean)) {
+      setStatus('🤝 Ничья!', '');
+      scores.D++;
+      updateScore();
+      over = true;
+      return;
+    }
+    current = current === 'X' ? 'O' : 'X';
+    setStatus('Ход: ' + (current === 'X' ? '❌' : '⭕'), current.toLowerCase());
+    render();
+    if (mode === 'bot' && current === 'O') setTimeout(botMove, 400);
+  }
+
+  function botMove() {
+    if (over) return;
+    const move = getBotMove();
+    if (move !== -1) play(move);
+  }
+
+  function getBotMove() {
+    for (let p of ['O', 'X']) {
+      for (let [a, b, c] of WINS) {
+        const cells = [a, b, c];
+        const vals = cells.map(i => board[i]);
+        const empty = cells.filter(i => !board[i]);
+        if (vals.filter(v => v===p).length===2 && empty.length===1) return empty[0];
+      }
+    }
+    if (!board[4]) return 4;
+    const corners = [0,2,6,8].filter(i => !board[i]);
+    if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+    const sides = [1,3,5,7].filter(i => !board[i]);
+    if (sides.length) return sides[Math.floor(Math.random() * sides.length)];
+    return board.findIndex(v => !v);
+  }
+
+  function updateScore() {
+    document.getElementById('score-x').textContent = scores.X;
+    document.getElementById('score-o').textContent = scores.O;
+    document.getElementById('score-d').textContent = scores.D;
+  }
+
+  function reset() {
+    board = Array(9).fill(null);
+    current = 'X';
+    over = false;
+    render();
+    setStatus('Ход: ❌', 'x');
+  }
+
+  function resetScore() {
+    scores = { X: 0, O: 0, D: 0 };
+    updateScore();
+    reset();
+  }
+
+  reset();
+</script>
+</body>
+</html>
